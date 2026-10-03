@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Žolynas – demonstracinė parduotuvė su sutarties atsisakymo funkcija</title>
+<meta name="description" content="Demonstracija: kaip el. parduotuvėje veikia privaloma sutarties atsisakymo funkcija – nuo mygtuko iki gavimo patvirtinimo.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --paper: #EEF2EC;
+    --surface: #FFFFFF;
+    --ink: #1B2A22;
+    --muted: #4C5E54;
+    --spruce: #1F5C46;
+    --spruce-deep: #15412F;
+    --tansy: #E2B321;
+    --line: #C9D3CB;
+    --error: #A8321F;
+    --font: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --wrap: 68rem;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+  }
+  h1, h2, h3 { line-height: 1.12; margin: 0; font-weight: 700; letter-spacing: -0.015em; }
+  p { margin: 0; }
+  a { color: inherit; }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--tansy); outline-offset: 3px; }
+  .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 1.25rem; }
+  .skip {
+    position: absolute; left: -999px; top: 0; background: var(--ink); color: #fff;
+    padding: .6rem 1rem; z-index: 10;
+  }
+  .skip:focus { left: .5rem; top: .5rem; }
+
+  /* Demonstracijos juosta */
+  .demo-strip { background: var(--spruce-deep); color: #F3F7F3; }
+  .demo-strip .wrap {
+    display: flex; gap: 1rem 1.5rem; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; padding-top: .8rem; padding-bottom: .8rem;
+  }
+  .demo-strip p { font-size: .95rem; max-width: 46rem; }
+  .btn {
+    display: inline-block; border: 2px solid transparent; border-radius: 999px;
+    padding: .65rem 1.25rem; font-weight: 650; text-decoration: none; line-height: 1.2;
+  }
+  .btn-tansy { background: var(--tansy); color: var(--ink); }
+  .btn-tansy:hover { background: #F0C53A; }
+  .btn-primary { background: var(--spruce); color: #fff; }
+  .btn-primary:hover { background: var(--spruce-deep); }
+  .btn-ghost { background: transparent; color: var(--spruce-deep); border-color: var(--spruce); }
+  .btn-ghost:hover { background: #E1EAE3; }
+  .btn-small { padding: .45rem .95rem; font-size: .95rem; }
+
+  /* Parduotuvės antraštė */
+  .shop-head { background: var(--surface); border-bottom: 1px solid var(--line); }
+  .shop-head .wrap {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding-top: 1rem; padding-bottom: 1rem; flex-wrap: wrap;
+  }
+  .logo {
+    font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; color: var(--spruce-deep);
+    text-decoration: none; background: none; border: 0; padding: 0;
+  }
+  .shop-nav { display: flex; gap: 1.4rem; align-items: center; flex-wrap: wrap; font-size: 1rem; }
+  .shop-nav span { color: var(--muted); }
+  .cart { font-weight: 650; }
+  .cart b { background: var(--spruce); color: #fff; border-radius: 999px; padding: .05rem .55rem; margin-left: .3rem; }
+
+  /* Parduotuvės vaizdas */
+  .intro { padding: 3.2rem 0 2.2rem; }
+  .intro h1 { font-size: clamp(2.3rem, 6vw, 4.4rem); font-weight: 800; letter-spacing: -0.035em; max-width: 14ch; }
+  .intro p { margin-top: 1rem; max-width: 52ch; color: var(--muted); font-size: 1.15rem; }
+  .grid {
+    display: grid; gap: 1.25rem; padding-bottom: 3.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr));
+  }
+  .product { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+  .product svg { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; }
+  .product-body { padding: 1rem 1.1rem 1.15rem; display: flex; flex-direction: column; gap: .35rem; flex: 1; }
+  .product h3 { font-size: 1.2rem; }
+  .product .desc { color: var(--muted); font-size: .97rem; flex: 1; }
+  .product .row { display: flex; align-items: center; justify-content: space-between; margin-top: .7rem; }
+  .price { font-weight: 750; font-size: 1.15rem; }
+
+  /* Atsisakymo procesas */
+  .flow { padding: 2.6rem 0 3.5rem; }
+  .flow-grid { display: grid; gap: 2rem; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); align-items: start; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; counter-reset: s; }
+  .steps li {
+    counter-increment: s; display: flex; gap: .7rem; align-items: baseline;
+    padding: .7rem .85rem; border-radius: 10px; color: var(--muted);
+  }
+  .steps li::before {
+    content: counter(s); font-weight: 750; min-width: 1.7rem; height: 1.7rem; border-radius: 50%;
+    border: 2px solid var(--line); display: inline-grid; place-items: center; font-size: .95rem;
+    flex: none; align-self: center;
+  }
+  .steps li[aria-current="step"] { background: var(--surface); color: var(--ink); font-weight: 650; border: 1px solid var(--line); }
+  .steps li[aria-current="step"]::before { background: var(--tansy); border-color: var(--tansy); color: var(--ink); }
+  .steps li.done::before { content: "✓"; background: var(--spruce); border-color: var(--spruce); color: #fff; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: clamp(1.25rem, 3vw, 2.2rem); }
+  .panel h2 { font-size: clamp(1.6rem, 3.5vw, 2.3rem); }
+  .panel h2:focus { outline: none; }
+  .lead { margin-top: .7rem; color: var(--muted); max-width: 60ch; }
+  form { margin-top: 1.6rem; display: grid; gap: 1.1rem; max-width: 32rem; }
+  label { font-weight: 650; display: block; margin-bottom: .3rem; }
+  .hint { font-size: .92rem; color: var(--muted); margin-bottom: .35rem; }
+  input, textarea {
+    width: 100%; font: inherit; color: var(--ink); background: #FAFCFA;
+    border: 2px solid #8FA398; border-radius: 10px; padding: .65rem .8rem;
+  }
+  input:focus-visible, textarea:focus-visible { outline: 3px solid var(--tansy); outline-offset: 1px; border-color: var(--spruce); }
+  input[aria-invalid="true"] { border-color: var(--error); }
+  .err { color: var(--error); font-size: .95rem; font-weight: 600; margin-top: .3rem; }
+  .actions { display: flex; gap: .8rem; flex-wrap: wrap; margin-top: .4rem; align-items: center; }
+  .linklike { background: none; border: 0; padding: 0; color: var(--spruce-deep); text-decoration: underline; font-weight: 600; }
+
+  .statement { margin-top: 1.5rem; border-left: 5px solid var(--tansy); background: #F6F8F2; padding: 1.1rem 1.25rem; border-radius: 0 10px 10px 0; max-width: 44rem; }
+  .statement dl { margin: .9rem 0 0; display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1.2rem; font-size: .98rem; }
+  .statement dt { color: var(--muted); }
+  .statement dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+
+  .received { margin-top: 1rem; font-size: 1.1rem; }
+  .received strong { background: #FBF1C9; padding: .1rem .4rem; border-radius: 6px; }
+  .both { margin-top: 1.8rem; display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
+  .side h3 { font-size: 1.1rem; margin-bottom: .6rem; }
+  .mail, .admin { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: .97rem; }
+  .mail-head { background: #F1F4F1; padding: .7rem 1rem; border-bottom: 1px solid var(--line); }
+  .mail-head div { overflow-wrap: anywhere; }
+  .mail-head span { color: var(--muted); }
+  .mail-body { padding: 1rem; display: grid; gap: .6rem; }
+  .admin { padding: 1rem; display: grid; gap: .55rem; }
+  .tag { display: inline-block; background: var(--tansy); color: var(--ink); font-weight: 700; font-size: .85rem; padding: .1rem .55rem; border-radius: 6px; }
+  .note { margin-top: 1.4rem; font-size: .95rem; color: var(--muted); }
+  .offer { margin-top: 1.6rem; background: var(--spruce-deep); color: #F3F7F3; border-radius: 14px; padding: 1.3rem 1.4rem; }
+  .offer h3 { font-size: 1.3rem; }
+  .offer p { margin-top: .5rem; max-width: 56ch; }
+  .offer a { color: #fff; font-weight: 700; }
+
+  /* Poraštė */
+  footer { background: var(--surface); border-top: 1px solid var(--line); }
+  footer .wrap { padding-top: 2rem; padding-bottom: 2.2rem; display: flex; gap: 1.5rem 3rem; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; }
+  .foot-links { display: flex; gap: .5rem 1.6rem; flex-wrap: wrap; color: var(--muted); max-width: 30rem; }
+  .foot-withdraw { display: grid; gap: .5rem; justify-items: start; }
+  .foot-withdraw p { font-size: .92rem; color: var(--muted); max-width: 24rem; }
+  .small { font-size: .9rem; color: var(--muted); width: 100%; }
+
+  [hidden] { display: none !important; }
+  @media (max-width: 52rem) {
+    .flow-grid { grid-template-columns: minmax(0, 1fr); }
+    .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .steps li { flex-direction: column; align-items: flex-start; gap: .35rem; font-size: .85rem; padding: .55rem .5rem; hyphens: auto; overflow-wrap: anywhere; }
+    .steps li::before { align-self: flex-start; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#turinys">Pereiti prie turinio</a>
+
+<div class="demo-strip" role="note">
+  <div class="wrap">
+    <p>Tai demonstracinė parduotuvė, čia nieko nusipirkti negalima. Ji rodo, kaip pirkėjas atsisako sutarties internetu: nuo mygtuko iki gavimo patvirtinimo. Visas kelias trunka apie minutę.</p>
+    <button class="btn btn-tansy btn-small" type="button" data-open-flow>Išbandyti atsisakymą</button>
+  </div>
+</div>
+
+<header class="shop-head">
+  <div class="wrap">
+    <button class="logo" type="button" id="logo" aria-label="Žolynas, grįžti į parduotuvę">Žolynas</button>
+    <nav class="shop-nav" aria-label="Parduotuvės meniu">
+      <span>Arbatos</span><span>Rinkiniai</span><span>Apie mus</span>
+      <span class="cart">Krepšelis <b id="cart-count" aria-live="polite">0</b></span>
+    </nav>
+  </div>
+</header>
+
+<main id="turinys">
+
+  <section id="view-shop" aria-labelledby="shop-title">
+    <div class="wrap">
+      <div class="intro">
+        <h1 id="shop-title">Pievų arbatos iš Dzūkijos</h1>
+        <p>Rankomis rinktos ir pavėsyje džiovintos žolelės. Siunčiame visoje Lietuvoje per 1–2 darbo dienas.</p>
+      </div>
+      <div class="grid" id="products"></div>
+    </div>
+  </section>
+
+  <section id="view-flow" class="flow" aria-label="Sutarties atsisakymas" hidden>
+    <div class="wrap flow-grid">
+      <ol class="steps" id="steps" aria-label="Atsisakymo eiga">
+        <li data-step="1">Pareiškimas</li>
+        <li data-step="2">Patvirtinimas</li>
+        <li data-step="3">Gavimo patvirtinimas</li>
+      </ol>
+
+      <div>
+        <!-- 1 žingsnis -->
+        <div class="panel" id="step-1">
+          <h2 tabindex="-1">Atsisakyti sutarties</h2>
+          <p class="lead">Užsakymo galite atsisakyti per 14 dienų nuo prekių gavimo, nenurodydami priežasties. Įrašykite duomenis, pagal kuriuos rasime jūsų užsakymą.</p>
+          <form id="form" novalidate>
+            <div>
+              <label for="f-name">Vardas ir pavardė</label>
+              <input id="f-name" name="name" type="text" autocomplete="name" required>
+              <p class="err" id="e-name" hidden></p>
+            </div>
+            <div>
+              <label for="f-order">Užsakymo numeris</label>
+              <p class="hint" id="h-order">Rasite užsakymo patvirtinimo laiške, pvz. ŽL-20418.</p>
+              <input id="f-order" name="order" type="text" aria-describedby="h-order" required>
+              <p class="err" id="e-order" hidden></p>
+            </div>
+            <div>
+              <label for="f-email">El. paštas</label>
+              <p class="hint" id="h-email">Šiuo adresu iš karto atsiųsime atsisakymo gavimo patvirtinimą.</p>
+              <input id="f-email" name="email" type="email" autocomplete="email" aria-describedby="h-email" required>
+              <p class="err" id="e-email" hidden></p>
+            </div>
+            <div>
+              <label for="f-items">Kurių prekių atsisakote <span style="font-weight:400">(neprivaloma)</span></label>
+              <p class="hint" id="h-items">Palikite tuščią, jei atsisakote viso užsakymo.</p>
+              <textarea id="f-items" name="items" rows="2" aria-describedby="h-items"></textarea>
+            </div>
+            <div class="actions">
+              <button class="btn btn-primary" type="submit">Tęsti</button>
+              <button class="linklike" type="button" id="fill">Užpildyti pavyzdiniais duomenimis</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 2 žingsnis -->
+        <div class="panel" id="step-2" hidden>
+          <h2 tabindex="-1">Patikrinkite ir patvirtinkite</h2>
+          <p class="lead">Kol nepaspaudėte patvirtinimo mygtuko, sutarties dar neatsisakėte. Taip apsaugome nuo atsitiktinio paspaudimo.</p>
+          <div class="statement">
+            <p id="st-text"></p>
+            <dl>
+              <dt>Užsakymas</dt><dd id="st-order"></dd>
+              <dt>Prekės</dt><dd id="st-items"></dd>
+              <dt>Patvirtinimą siųsime</dt><dd id="st-email"></dd>
+            </dl>
+          </div>
+          <div class="actions" style="margin-top:1.5rem">
+            <button class="btn btn-primary" type="button" id="confirm">Patvirtinti sutarties atsisakymą</button>
+            <button class="btn btn-ghost" type="button" id="back">Grįžti ir pataisyti</button>
+          </div>
+        </div>
+
+        <!-- 3 žingsnis -->
+        <div class="panel" id="step-3" hidden>
+          <h2 tabindex="-1">Sutarties atsisakymas gautas</h2>
+          <p class="received">Pareiškimą gavome <strong id="done-when"></strong>.</p>
+          <div class="both">
+            <div class="side">
+              <h3>Ką iš karto gauna pirkėjas</h3>
+              <div class="mail">
+                <div class="mail-head">
+                  <div><span>Kam:</span> <b id="m-to"></b></div>
+                  <div><span>Tema:</span> Sutarties atsisakymo gavimo patvirtinimas, užsakymas <span id="m-order" style="color:inherit"></span></div>
+                </div>
+                <div class="mail-body">
+                  <p>Sveiki, <span id="m-name"></span>,</p>
+                  <p>gavome jūsų pareiškimą atsisakyti sutarties.</p>
+                  <p><b>Pareiškimo turinys:</b> <span id="m-text"></span></p>
+                  <p><b>Pateikta:</b> <span id="m-when"></span></p>
+                  <p>Kaip grąžinti prekes ir kada grąžinsime pinigus, parašysime atskiru laišku.</p>
+                </div>
+              </div>
+            </div>
+            <div class="side">
+              <h3>Ką matote jūs, parduotuvės savininkas</h3>
+              <div class="admin">
+                <p><span class="tag">Naujas atsisakymas</span></p>
+                <p><b id="a-order"></b>, <span id="a-name"></span></p>
+                <p>Gauta: <span id="a-when"></span></p>
+                <p>Prekės: <span id="a-items"></span></p>
+                <p>Pinigus grąžinti iki: <b id="a-refund"></b></p>
+              </div>
+            </div>
+          </div>
+          <p class="note">Demonstracijoje laiškai nesiunčiami ir duomenys niekur nesaugomi. Tikroje parduotuvėje patvirtinimas išsiunčiamas automatiškai, o įrašas atsiranda užsakymų valdyme.</p>
+          <div class="offer" id="offer" hidden>
+            <h3>Norite tokios funkcijos savo parduotuvėje?</h3>
+            <p>Įdiegiu ją į esamą parduotuvę ir patikrinu visą kelią kartu su jumis. Rašykite: <a id="offer-mail" href="#"></a></p>
+          </div>
+          <div class="actions" style="margin-top:1.5rem">
+            <button class="btn btn-ghost" type="button" id="restart">Pradėti iš naujo</button>
+            <button class="btn btn-ghost" type="button" id="to-shop">Grįžti į parduotuvę</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-links" aria-label="Informacija pirkėjams">
+      <span>Pristatymas</span><span>Prekių grąžinimas</span><span>Pirkimo taisyklės</span><span>Privatumo politika</span><span>Kontaktai</span>
+    </div>
+    <div class="foot-withdraw">
+      <button class="btn btn-ghost" type="button" data-open-flow>Atsisakyti sutarties</button>
+      <p>Šis mygtukas matomas kiekviename parduotuvės puslapyje visą atsisakymo laikotarpį.</p>
+    </div>
+    <p class="small">Žolynas yra išgalvota parduotuvė, sukurta demonstracijai.</p>
+  </div>
+</footer>
+
+<script>
+  // ---- Čia įrašyk savo kontaktus. Kol paštas nepakeistas, pasiūlymo blokas nerodomas. ----
+  const KONTAKTAS = { elPastas: "capaseliziejus@gmail.com" };
+
+  const PRODUCTS = [
+    { name: "Čiobrelių arbata", desc: "Švelniai aštri, tinka vakarui. 40 g.", price: "5,90 €", bg: "#DCE8DD", fg: "#1F5C46", kind: "sprig" },
+    { name: "Liepžiedžiai", desc: "Rinkti birželį prie Merkio. 30 g.", price: "4,80 €", bg: "#F6EBC2", fg: "#B58A0E", kind: "bloom" },
+    { name: "Ramunėlės", desc: "Sveiki žiedai, nesmulkinti. 35 g.", price: "4,50 €", bg: "#E6EEF0", fg: "#3D6B78", kind: "daisy" },
+    { name: "Mėtų ir melisų mišinys", desc: "Gaivus, geriamas ir šaltas. 50 g.", price: "6,40 €", bg: "#D3E6D6", fg: "#15412F", kind: "leaf" }
+  ];
+
+  function art(p) {
+    const shapes = {
+      sprig: `<path d="M100 130V40" stroke="${p.fg}" stroke-width="4" stroke-linecap="round"/>` +
+             [50, 68, 86, 104].map((y, i) => `<ellipse cx="${i % 2 ? 114 : 86}" cy="${y}" rx="13" ry="6" fill="${p.fg}" transform="rotate(${i % 2 ? -28 : 28} ${i % 2 ? 114 : 86} ${y})"/>`).join(""),
+      bloom: [0, 72, 144, 216, 288].map(a => `<ellipse cx="100" cy="52" rx="12" ry="24" fill="${p.fg}" transform="rotate(${a} 100 78)"/>`).join("") + `<circle cx="100" cy="78" r="9" fill="#fff"/>`,
+      daisy: [0, 45, 90, 135, 180, 225, 270, 315].map(a => `<ellipse cx="100" cy="50" rx="8" ry="22" fill="#fff" stroke="${p.fg}" stroke-width="2" transform="rotate(${a} 100 78)"/>`).join("") + `<circle cx="100" cy="78" r="11" fill="#E2B321"/>`,
+      leaf: `<path d="M100 128C60 104 60 56 100 30c40 26 40 74 0 98z" fill="${p.fg}"/><path d="M100 120V46" stroke="${p.bg}" stroke-width="3" stroke-linecap="round"/>`
+    };
+    return `<svg viewBox="0 0 200 150" role="img" aria-label="${p.name}, iliustracija"><rect width="200" height="150" fill="${p.bg}"/>${shapes[p.kind]}</svg>`;
+  }
+
+  const $ = id => document.getElementById(id);
+  let cart = 0;
+
+  $("products").innerHTML = PRODUCTS.map((p, i) => `
+    <article class="product">
+      ${art(p)}
+      <div class="product-body">
+        <h3>${p.name}</h3>
+        <p class="desc">${p.desc}</p>
+        <div class="row">
+          <span class="price">${p.price}</span>
+          <button class="btn btn-primary btn-small" type="button" data-add="${i}" aria-label="Įdėti į krepšelį: ${p.name}">Į krepšelį</button>
+        </div>
+      </div>
+    </article>`).join("");
+
+  $("products").addEventListener("click", e => {
+    if (e.target.closest("[data-add]")) $("cart-count").textContent = ++cart;
+  });
+
+  // ---- Vaizdų perjungimas ----
+  function showShop() {
+    $("view-flow").hidden = true;
+    $("view-shop").hidden = false;
+    window.scrollTo(0, 0);
+    $("logo").focus({ preventScroll: true });
+  }
+
+  function showStep(n) {
+    $("view-shop").hidden = true;
+    $("view-flow").hidden = false;
+    [1, 2, 3].forEach(i => {
+      $("step-" + i).hidden = i !== n;
+      const li = document.querySelector(`#steps li[data-step="${i}"]`);
+      li.classList.toggle("done", i < n);
+      if (i === n) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current");
+    });
+    const h = $("step-" + n).querySelector("h2");
+    $("view-flow").scrollIntoView({ block: "start" });
+    h.focus({ preventScroll: true });
+  }
+
+  document.querySelectorAll("[data-open-flow]").forEach(b => b.addEventListener("click", () => showStep(1)));
+  $("logo").addEventListener("click", showShop);
+  $("to-shop").addEventListener("click", showShop);
+
+  // ---- 1 žingsnis: forma ----
+  const state = {};
+
+  function setError(field, msg) {
+    const input = $("f-" + field), err = $("e-" + field);
+    if (msg) {
+      err.textContent = msg; err.hidden = false;
+      input.setAttribute("aria-invalid", "true");
+      input.setAttribute("aria-describedby", [("h-" + field), ("e-" + field)].filter(id => $(id)).join(" "));
+    } else {
+      err.hidden = true; input.removeAttribute("aria-invalid");
+    }
+    return !msg;
+  }
+
+  $("fill").addEventListener("click", () => {
+    $("f-name").value = "Rūta Kazlauskienė";
+    $("f-order").value = "ŽL-20418";
+    $("f-email").value = "ruta@pavyzdys.lt";
+    ["name", "order", "email"].forEach(f => setError(f, ""));
+  });
+
+  $("form").addEventListener("submit", e => {
+    e.preventDefault();
+    const name = $("f-name").value.trim();
+    const order = $("f-order").value.trim();
+    const email = $("f-email").value.trim();
+    const okName = setError("name", name ? "" : "Įrašykite vardą ir pavardę.");
+    const okOrder = setError("order", order ? "" : "Įrašykite užsakymo numerį iš patvirtinimo laiško.");
+    const okEmail = setError("email", /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? "" : "Įrašykite el. pašto adresą, pvz. vardas@pastas.lt.");
+    if (!(okName && okOrder && okEmail)) {
+      $(!okName ? "f-name" : !okOrder ? "f-order" : "f-email").focus();
+      return;
+    }
+    Object.assign(state, { name, order, email, items: $("f-items").value.trim() || "Visas užsakymas" });
+    state.text = `Aš, ${name}, pranešu, kad atsisakau sutarties dėl užsakymo ${order}.`;
+    $("st-text").textContent = state.text;
+    $("st-order").textContent = order;
+    $("st-items").textContent = state.items;
+    $("st-email").textContent = email;
+    showStep(2);
+  });
+
+  $("back").addEventListener("click", () => showStep(1));
+
+  // ---- 2 → 3 žingsnis: patvirtinimas ----
+  $("confirm").addEventListener("click", () => {
+    const now = new Date();
+    const date = now.toLocaleDateString("lt-LT");
+    const time = now.toLocaleTimeString("lt-LT", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const when = `${date}, ${time}`;
+    const refund = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString("lt-LT");
+
+    $("done-when").textContent = when;
+    $("m-to").textContent = state.email;
+    $("m-order").textContent = state.order;
+    $("m-name").textContent = state.name;
+    $("m-text").textContent = state.text + (state.items === "Visas užsakymas" ? "" : ` Prekės: ${state.items}.`);
+    $("m-when").textContent = when;
+    $("a-order").textContent = state.order;
+    $("a-name").textContent = state.name;
+    $("a-when").textContent = when;
+    $("a-items").textContent = state.items;
+    $("a-refund").textContent = refund;
+    showStep(3);
+  });
+
+  $("restart").addEventListener("click", () => {
+    $("form").reset();
+    ["name", "order", "email"].forEach(f => setError(f, ""));
+    showStep(1);
+  });
+
+  // ---- Pasiūlymo blokas rodomas tik įrašius tikrą paštą ----
+  if (KONTAKTAS.elPastas && !KONTAKTAS.elPastas.startsWith("tavo@")) {
+    $("offer-mail").textContent = KONTAKTAS.elPastas;
+    $("offer-mail").href = "mailto:" + KONTAKTAS.elPastas;
+    $("offer").hidden = false;
+  }
+</script>
+</body>
+</html>
